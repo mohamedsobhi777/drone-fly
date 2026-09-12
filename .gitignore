@@ -8,3 +8,5 @@ web/dist/
 .local/
 .DS_Store
 .env
+web/test-results/
+web/playwright-report/

@@ -4094,5 +4094,6 @@
     }
   ],
   "wallSeconds": 99.8904564169934,
-  "scope": "Camera fiducial navigation in generic MuJoCo quadcopter; no hardware or biological validation. One fitted checkpoint per substrate; paired courses, not independent training replications."
+  "scope": "Camera fiducial navigation in generic MuJoCo quadcopter; no hardware or biological validation. One fitted checkpoint per substrate; paired courses, not independent training replications.",
+  "checkpointHash": "52f4da5a59423e52667b9f5db62abf3dd1c88625c1c6a474f84ce357737e2b5b"
 }

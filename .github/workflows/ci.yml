@@ -1,0 +1,50 @@
+name: Verify flight laboratory
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MUJOCO_GL: egl
+      PYOPENGL_PLATFORM: egl
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install physics and browser prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libgl1-mesa-dri
+          python -m pip install uv==0.11.16
+          uv sync --frozen --extra dev
+          npm --prefix web ci
+      - name: Verify code and physics
+        run: |
+          uv run ruff check drone_fly scripts tests
+          uv run ruff format --check drone_fly scripts tests
+          uv run pytest -q
+          npm --prefix web run build
+      - name: Verify browser workflows
+        working-directory: web
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-test-results
+          path: web/test-results
+          retention-days: 7
+

@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field, ValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .circuit import GRAPH, GRAPH_HASH, MANIFEST, Circuit, Readout
-from .experiments import ARTIFACTS, KINDS, ROOT, VERSION, load_models, save_json
+from .experiments import ARTIFACTS, KINDS, ROOT, VERSION, checkpoint_hash, load_models, save_json
 from .physics import CONTROL_DT, Flight
 from .vision import CHANNELS, encode, visual_servo
 
@@ -26,9 +26,12 @@ ACTIVE = LOCAL / "active-models.json"
 
 def model_path():
     if ACTIVE.exists():
-        candidate = LOCAL / json.loads(ACTIVE.read_text())["path"]
-        if candidate.is_relative_to(LOCAL) and candidate.exists():
-            return candidate
+        try:
+            candidate = (LOCAL / json.loads(ACTIVE.read_text())["path"]).resolve()
+            if candidate.is_relative_to(LOCAL.resolve()) and candidate.exists():
+                return candidate
+        except (ValueError, KeyError, OSError):
+            pass
     return ARTIFACTS / "models.json"
 
 
@@ -55,9 +58,14 @@ class Jobs:
         self.task = None
         self.state = {"status": "idle", "message": "Ready for an experiment"}
         self.last_report = None
+        self.lock = asyncio.Lock()
 
     async def start(self, request: JobRequest):
-        if self.process and self.process.returncode is None:
+        async with self.lock:
+            return await self._start(request)
+
+    async def _start(self, request):
+        if self.task and not self.task.done():
             raise HTTPException(409, "An experiment is already running")
         folder = LOCAL / "experiments" / datetime.now(UTC).strftime("%Y%m%d-%H%M%S-%f")
         folder.mkdir(parents=True)
@@ -128,6 +136,10 @@ class Jobs:
             (folder / "run.log").write_text("\n".join(log) + f"\n{exc}")
 
     async def cancel(self):
+        async with self.lock:
+            return await self._cancel()
+
+    async def _cancel(self):
         if self.process and self.process.returncode is None:
             self.state.update(
                 status="cancelled", message="Experiment cancelled; previous checkpoint retained"
@@ -220,6 +232,7 @@ class Session:
         self.controller = "connectome"
         self.intervention = "none"
         self.models = None
+        self.model_hash = None
         self.circuit = None
         self.readout = None
         self.sequence = 0
@@ -235,8 +248,10 @@ class Session:
     def reset(self, seed, difficulty):
         try:
             self.models = load_models(model_path())
+            self.model_hash = checkpoint_hash(self.models)
         except (OSError, ValueError):
             self.models = None
+            self.model_hash = None
             self.controller = "servo"
         new_flight = Flight(seed, difficulty)
         if self.flight:
@@ -277,6 +292,7 @@ class Session:
                 self.running = False
         self.flight.last_image = processed
         return {
+            "checkpointHash": self.model_hash,
             "type": "frame",
             "sequence": self.sequence,
             **self.flight.snapshot(),

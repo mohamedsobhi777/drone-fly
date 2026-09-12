@@ -1,6 +1,7 @@
 """Reproducible training and held-out evaluation; also used by the local workbench."""
 
 import argparse
+import hashlib
 import json
 import os
 import time
@@ -16,6 +17,15 @@ ROOT = Path(__file__).resolve().parent.parent
 ARTIFACTS = ROOT / "artifacts"
 KINDS = ("connectome", "rewired", "random")
 VERSION = "drone-fly-camera-v1"
+
+
+def checkpoint_hash(data):
+    payload = {
+        "version": data["version"],
+        "graphHash": data["graphHash"],
+        "coefficients": {kind: data["models"][kind]["coefficients"] for kind in KINDS},
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
 def emit(event, **values):
@@ -41,6 +51,8 @@ def load_models(path=None):
         coefficients = np.asarray(model.get("coefficients", []))
         if coefficients.shape != (113, 3) or not np.isfinite(coefficients).all():
             raise ValueError("Invalid trained readout coefficients")
+    if "checkpointHash" in data and data["checkpointHash"] != checkpoint_hash(data):
+        raise ValueError("Trained coefficients do not match the checkpoint fingerprint")
     return data
 
 
@@ -98,6 +110,7 @@ def train(courses=24, output=ARTIFACTS):
         "models": models,
         "teacherResults": teacher_results,
     }
+    artifact["checkpointHash"] = checkpoint_hash(artifact)
     save_json(Path(output) / "models.json", artifact)
     emit(
         "complete",
@@ -173,6 +186,7 @@ def benchmark(courses=12, output=ARTIFACTS, models_path=None):
             }
         )
     report = {
+        "checkpointHash": checkpoint_hash(models),
         "version": VERSION,
         "graphHash": GRAPH_HASH,
         "evaluationSeeds": seeds,

@@ -1,13 +1,9 @@
-# MaleCNS v1.0 circuit subset
+# MaleCNS circuit data
 
-Data creators: FlyEM / HHMI Janelia, University of Cambridge, MRC Laboratory of Molecular Biology and Google Research. Dataset/project: https://male-cns.janelia.org/download/
+Measured source: MaleCNS v1.0, minimum confidence 0.5. Data creators: FlyEM / HHMI Janelia, University of Cambridge, MRC Laboratory of Molecular Biology, Google Research. License: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). [Dataset](https://male-cns.janelia.org/download/).
 
-License: Creative Commons Attribution 4.0 International, https://creativecommons.org/licenses/by/4.0/. No endorsement of this experiment is implied.
+This is the unchanged 80-cell / 1,296-edge / 26,029-contact extract published in [Fly Dino by Mert Cobanov](https://github.com/cobanov/flyjump/tree/c08c86bc18efd8125964b1d2ca4fc1df59700f30/public/data/connectome). Graph SHA-256: `2424c9dd2e44534e600aeda1a9058039b1f22a4bd983284a27adc10b22130719`.
 
-Derived from the v1.0 minimum-confidence-0.5 annotation and connectivity tables, and v1.0 neurotransmitter table. Exact URLs and SHA-256 are documented in the repository protocol and manifest.
+The accompanying manifest describes the upstream extraction, not Drone Fly's model. Reproduce the extract using the pinned upstream [builder](https://github.com/cobanov/flyjump/blob/c08c86bc18efd8125964b1d2ca4fc1df59700f30/scripts/build-connectome.py) and [protocol](https://github.com/cobanov/flyjump/blob/c08c86bc18efd8125964b1d2ca4fc1df59700f30/docs/experiment.md).
 
-Changes: deterministic selection of 80 cells and all 1,296 measured internal directed edges; retention of original body IDs, soma coordinates, type and transmitter annotations; creation of graph indices and engineered input/output roles. Source edge contact counts remain unchanged. The runtime normalizes incoming contact counts and applies assumed transmitter signs and leaky tanh dynamics. These transformations are not biological measurements.
-
-The graph represents a small selected circuit, not a complete brain. Its activity is simulated and dimensionless. Input encoding and action readout are artificial.
-
-Reproduce: `uv run --with pyarrow --with numpy python scripts/build-connectome.py /tmp/pinfly-data`. Source hashes are checked before extraction. See docs/experiment.md for download commands, exact equations, boundary assumptions and validation.
+Drone Fly assigns engineered camera/velocity channels to input cells and fits an artificial navigation readout. Source anatomy is unchanged. Runtime assumptions are in `docs/METHODS.md` at the repository root. No biological fidelity or upstream endorsement is implied.
