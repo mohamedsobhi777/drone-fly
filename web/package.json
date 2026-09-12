@@ -3,7 +3,25 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "scripts": {"dev": "vite --host 127.0.0.1", "build": "tsc --noEmit && vite build", "preview": "vite preview --host 127.0.0.1"},
-  "dependencies": {"react": "19.2.6", "react-dom": "19.2.6", "three": "0.186.0", "@fontsource/ibm-plex-mono": "^5.2.0", "@fontsource/archivo": "^5.2.0"},
-  "devDependencies": {"@types/react": "19.2.14", "@types/react-dom": "19.2.3", "@types/three": "0.186.0", "@vitejs/plugin-react": "6.0.2", "typescript": "5.9.3", "vite": "8.3.0"}
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@fontsource/archivo": "^5.2.0",
+    "@fontsource/ibm-plex-mono": "^5.2.0",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "three": "0.186.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@types/three": "0.186.0",
+    "@vitejs/plugin-react": "6.0.2",
+    "typescript": "5.9.3",
+    "vite": "8.3.0"
+  }
 }

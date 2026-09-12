@@ -1,4 +1,5 @@
 """Fixed measured connectivity, plus topology controls with the same interfaces."""
+
 import hashlib
 import json
 from pathlib import Path
@@ -52,8 +53,8 @@ class Circuit:
         self.activity = np.zeros(self.n)
         # A conventional fixed random feature substrate, dimension-matched at readout.
         rng = np.random.default_rng(19)
-        self.random_projection = rng.normal(0, .65, (self.n, 8))
-        self.random_bias = rng.normal(0, .2, self.n)
+        self.random_projection = rng.normal(0, 0.65, (self.n, 8))
+        self.random_bias = rng.normal(0, 0.2, self.n)
 
     def step(self, observation, intervention="none"):
         observation = np.asarray(observation, dtype=float)
@@ -62,13 +63,14 @@ class Circuit:
         if intervention == "silence":
             self.activity[:] = 0
         elif self.kind == "random":
-            self.activity = .3 * self.activity + .7 * np.tanh(
-                self.random_projection @ observation + self.random_bias)
+            self.activity = 0.3 * self.activity + 0.7 * np.tanh(
+                self.random_projection @ observation + self.random_bias
+            )
         else:
             drive = np.zeros(self.n)
             drive[self.inputs[:, 0]] = 1.5 * observation[self.inputs[:, 1]]
             for _ in range(3):
-                self.activity = .3 * self.activity + .7 * np.tanh(drive + 1.4 * (self.w @ self.activity))
+                self.activity = 0.3 * self.activity + 0.7 * np.tanh(drive + 1.4 * (self.w @ self.activity))
                 if intervention == "outputs":
                     self.activity[self.outputs] = 0
         if intervention == "outputs":
@@ -82,29 +84,28 @@ class Circuit:
 class Readout:
     """Fixed nonlinear expansion of 16 output cells + trainable ridge readout.
 
-The expansion never sees the camera features directly. All learned coefficients
-are fitted on training data only. The bias remains active during circuit ablation.
-"""
+    The expansion never sees the camera features directly. All learned coefficients
+    are fitted on training data only. The bias remains active during circuit ablation.
+    """
+
     def __init__(self, coefficients=None):
         rng = np.random.default_rng(37)
         self.projection = rng.normal(0, 1.4, (96, 16))
-        self.bias = rng.normal(0, .35, 96)
+        self.bias = rng.normal(0, 0.35, 96)
         self.coefficients = None if coefficients is None else np.asarray(coefficients)
 
     def features(self, output):
         output = np.asarray(output) * 3
-        return np.r_[output, np.tanh(self.projection @ output + self.bias), 1.]
+        return np.r_[output, np.tanh(self.projection @ output + self.bias), 1.0]
 
     def act(self, output):
         if self.coefficients is None:
             raise RuntimeError("No trained readout loaded; run training")
-        return np.clip(self.features(output) @ self.coefficients,
-                       [-.5, -2, -1.5], [2, 2, 1.5])
+        return np.clip(self.features(output) @ self.coefficients, [-0.5, -2, -1.5], [2, 2, 1.5])
 
-    def fit(self, features, targets, regularization=.02):
+    def fit(self, features, targets, regularization=0.02):
         x, y = np.asarray(features), np.asarray(targets)
         penalty = np.eye(x.shape[1]) * regularization
         penalty[-1, -1] = 0
         self.coefficients = np.linalg.solve(x.T @ x + penalty, x.T @ y)
         return float(np.mean((x @ self.coefficients - y) ** 2))
-

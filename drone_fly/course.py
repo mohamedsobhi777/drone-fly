@@ -1,5 +1,7 @@
 """Seeded, fully specified courses shared by physics and the browser."""
+
 from dataclasses import asdict, dataclass
+
 import numpy as np
 
 
@@ -40,10 +42,14 @@ def make_course(seed: int, difficulty: str = "standard") -> Course:
         raise ValueError("Unknown course difficulty")
     rng = np.random.default_rng(seed)
     spread = 1.25 if difficulty != "slalom" else 1.9
-    gates = tuple(Gate(5.0 + i * 5.5, float(rng.uniform(-spread, spread)),
-                       float(rng.uniform(1.35, 2.25))) for i in range(5))
+    gates = tuple(
+        Gate(5.0 + i * 5.5, float(rng.uniform(-spread, spread)), float(rng.uniform(1.35, 2.25)))
+        for i in range(5)
+    )
     # Pillars flank the flight corridor. Gate frames are the primary obstacles.
-    obstacles = tuple(Obstacle(7.5 + i * 5.5, float(side * rng.uniform(3.3, 4.0)), 1.6)
-                      for i in range(4) for side in (-1, 1))
+    obstacles = tuple(
+        Obstacle(7.5 + i * 5.5, float(side * rng.uniform(3.3, 4.0)), 1.6)
+        for i in range(4)
+        for side in (-1, 1)
+    )
     return Course(seed, difficulty, gates, obstacles, gates[-1].x + 5)
-

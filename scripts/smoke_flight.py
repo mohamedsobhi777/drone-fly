@@ -1,7 +1,10 @@
 """Check stabilization, real camera encoding and a conventional visual pilot."""
-from pathlib import Path
+
 import time
+from pathlib import Path
+
 from PIL import Image
+
 from drone_fly.physics import Flight
 from drone_fly.vision import encode, visual_servo
 
@@ -25,4 +28,3 @@ if __name__ == "__main__":
             if flight.status != "flying":
                 break
         print("Final:", flight.snapshot(), "wall seconds", time.perf_counter() - start, flush=True)
-

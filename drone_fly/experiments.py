@@ -1,13 +1,14 @@
 """Reproducible training and held-out evaluation; also used by the local workbench."""
+
 import argparse
 import json
 import os
-from pathlib import Path
 import time
+from pathlib import Path
 
 import numpy as np
 
-from .circuit import Circuit, GRAPH_HASH, Readout
+from .circuit import GRAPH_HASH, Circuit, Readout
 from .physics import Flight
 from .vision import encode, visual_servo
 
@@ -62,25 +63,49 @@ def train(courses=24, output=ARTIFACTS):
                     xs[kind].append(readouts[kind].features(circuits[kind].step(obs)))
                 ys.append(target)
                 # Shared exploration improves coverage; it is independent of each substrate.
-                perturbation = rng.normal(0, [.06, .18, .12])
+                perturbation = rng.normal(0, [0.06, 0.18, 0.12])
                 flight.step(target + perturbation)
             teacher_results.append({"seed": seed, "difficulty": difficulty, **flight.snapshot()})
-        emit("progress", phase="collect", current=i + 1, total=courses, samples=len(ys),
-             message=f"Collected shared camera observations · course {i + 1}/{courses}")
+        emit(
+            "progress",
+            phase="collect",
+            current=i + 1,
+            total=courses,
+            samples=len(ys),
+            message=f"Collected shared camera observations · course {i + 1}/{courses}",
+        )
     models = {}
     for kind in KINDS:
         mse = readouts[kind].fit(xs[kind], ys)
         models[kind] = {"coefficients": readouts[kind].coefficients.tolist(), "trainingMSE": mse}
-        emit("progress", phase="fit", kind=kind, mse=mse,
-             message=f"Fitted {kind} readout · training MSE {mse:.5f}")
-    artifact = {"version": VERSION, "graphHash": GRAPH_HASH, "method": "ridge imitation of visual servo",
-                "trainingSeeds": seeds, "trainingRNG": 20260913, "samples": len(ys),
-                "trainableParametersPerModel": 339, "regularization": .02,
-                "wallSeconds": time.perf_counter() - started, "models": models,
-                "teacherResults": teacher_results}
+        emit(
+            "progress",
+            phase="fit",
+            kind=kind,
+            mse=mse,
+            message=f"Fitted {kind} readout · training MSE {mse:.5f}",
+        )
+    artifact = {
+        "version": VERSION,
+        "graphHash": GRAPH_HASH,
+        "method": "ridge imitation of visual servo",
+        "trainingSeeds": seeds,
+        "trainingRNG": 20260913,
+        "samples": len(ys),
+        "trainableParametersPerModel": 339,
+        "regularization": 0.02,
+        "wallSeconds": time.perf_counter() - started,
+        "models": models,
+        "teacherResults": teacher_results,
+    }
     save_json(Path(output) / "models.json", artifact)
-    emit("complete", phase="train", path=str(Path(output) / "models.json"),
-         seconds=artifact["wallSeconds"], samples=len(ys))
+    emit(
+        "complete",
+        phase="train",
+        path=str(Path(output) / "models.json"),
+        seconds=artifact["wallSeconds"],
+        samples=len(ys),
+    )
     return artifact
 
 
@@ -93,8 +118,13 @@ def run_episode(seed, difficulty, controller, models, intervention="none"):
             output = circuit.step(obs, intervention)
             command = visual_servo(obs) if controller == "servo" else readout.act(output)
             flight.step(command)
-        return {"seed": seed, "difficulty": difficulty, "controller": controller,
-                "intervention": intervention, **flight.snapshot()}
+        return {
+            "seed": seed,
+            "difficulty": difficulty,
+            "controller": controller,
+            "intervention": intervention,
+            **flight.snapshot(),
+        }
 
 
 def benchmark(courses=12, output=ARTIFACTS, models_path=None):
@@ -104,7 +134,8 @@ def benchmark(courses=12, output=ARTIFACTS, models_path=None):
     if set(seeds) & set(models["trainingSeeds"]):
         raise ValueError("Evaluation seeds overlap training seeds")
     conditions = [(k, "none") for k in (*KINDS, "servo")] + [
-        ("connectome", intervention) for intervention in ("blind", "left-eye", "silence", "outputs")]
+        ("connectome", intervention) for intervention in ("blind", "left-eye", "silence", "outputs")
+    ]
     results, summaries = [], []
     for controller, intervention in conditions:
         rows = []
@@ -113,8 +144,14 @@ def benchmark(courses=12, output=ARTIFACTS, models_path=None):
             row = run_episode(seed, difficulty, controller, models, intervention)
             rows.append(row)
             results.append(row)
-            emit("progress", phase="evaluate", current=len(results), total=courses * len(conditions),
-                 message=f"{controller} / {intervention} · {i + 1}/{courses} courses", result=row)
+            emit(
+                "progress",
+                phase="evaluate",
+                current=len(results),
+                total=courses * len(conditions),
+                message=f"{controller} / {intervention} · {i + 1}/{courses} courses",
+                result=row,
+            )
         completions = sum(r["status"] == "complete" for r in rows)
         n = len(rows)
         p = completions / n
@@ -122,17 +159,30 @@ def benchmark(courses=12, output=ARTIFACTS, models_path=None):
         z = 1.96
         center = (p + z * z / (2 * n)) / (1 + z * z / n)
         radius = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
-        summaries.append({"controller": controller, "intervention": intervention, "courses": n,
-                          "completions": completions, "completionRate": p,
-                          "completionCI95": [float(center - radius), float(center + radius)],
-                          "meanGates": float(np.mean([r["passed"] for r in rows])),
-                          "collisions": sum(r["status"] == "collision" for r in rows),
-                          "meanTime": float(np.mean([r["time"] for r in rows]))})
-    report = {"version": VERSION, "graphHash": GRAPH_HASH, "evaluationSeeds": seeds,
-              "trainingSeeds": models["trainingSeeds"], "conditions": summaries, "episodes": results,
-              "wallSeconds": time.perf_counter() - started,
-              "scope": "Camera fiducial navigation in generic MuJoCo quadcopter; no hardware or biological validation. "
-                       "One fitted checkpoint per substrate; paired courses, not independent training replications."}
+        summaries.append(
+            {
+                "controller": controller,
+                "intervention": intervention,
+                "courses": n,
+                "completions": completions,
+                "completionRate": p,
+                "completionCI95": [float(center - radius), float(center + radius)],
+                "meanGates": float(np.mean([r["passed"] for r in rows])),
+                "collisions": sum(r["status"] == "collision" for r in rows),
+                "meanTime": float(np.mean([r["time"] for r in rows])),
+            }
+        )
+    report = {
+        "version": VERSION,
+        "graphHash": GRAPH_HASH,
+        "evaluationSeeds": seeds,
+        "trainingSeeds": models["trainingSeeds"],
+        "conditions": summaries,
+        "episodes": results,
+        "wallSeconds": time.perf_counter() - started,
+        "scope": "Camera fiducial navigation in generic MuJoCo quadcopter; no hardware or biological validation. "
+        "One fitted checkpoint per substrate; paired courses, not independent training replications.",
+    }
     save_json(Path(output) / "benchmark.json", report)
     emit("complete", phase="evaluate", conditions=summaries, seconds=report["wallSeconds"])
     return report
@@ -156,4 +206,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
